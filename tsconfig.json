@@ -1,0 +1,25 @@
+{
+  "typeRoots": ["@types/node", "./src/types"],
+  "compilerOptions": {
+    "strict": true,
+    "types": ["node"],
+    "module": "Node16",
+    "declaration": true,
+    "removeComments": true,
+    "allowSyntheticDefaultImports": true,
+    "skipLibCheck": true,
+    "target": "es2022",
+    "sourceMap": true,
+    "esModuleInterop": true,
+    "strictPropertyInitialization": false,
+    "moduleResolution": "node",
+    "emitDecoratorMetadata": true,
+    "experimentalDecorators": true,
+    "outDir": "dist",
+    "baseUrl": ".",
+    "paths": {
+      "*": ["node_modules/*"]
+    }
+  },
+  "include": ["src/**/*"]
+}

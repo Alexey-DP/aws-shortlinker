@@ -1,0 +1,206 @@
+service: short-linker
+frameworkVersion: '3'
+
+useDotenv: true
+
+custom:
+  esbuild:
+    bundle: true
+    minify: false
+  autoswagger:
+    typefiles:
+      - src/types/api-types.d.ts
+    apiKeyHeaders:
+      - Authorization
+    basePath: /${sls:stage}
+
+plugins:
+  - serverless-auto-swagger
+  - serverless-esbuild
+  - serverless-offline
+
+provider:
+  name: aws
+  runtime: nodejs18.x
+  region: eu-north-1
+  iam:
+    role:
+      statements:
+        - Effect: 'Allow'
+          Action:
+            - 'dynamodb:PutItem'
+            - 'dynamodb:Get*'
+            - 'dynamodb:Scan*'
+            - 'dynamodb:UpdateItem'
+            - 'dynamodb:DeleteItem'
+            - 'dynamodb:BatchWriteItem'
+            - 'sqs:SendMessage'
+            - 'ses:SendEmail'
+          Resource:
+            - arn:aws:dynamodb:${aws:region}:${aws:accountId}:table/users
+            - arn:aws:dynamodb:${aws:region}:${aws:accountId}:table/links
+            - arn:aws:ses:${self:provider.region}:${aws:accountId}:*
+            - arn:aws:sqs:${self:provider.region}:${aws:accountId}:emailQueue
+  environment:
+    RSA_PRIVATE_KEY: ${env:RSA_PRIVATE_KEY}
+    RSA_PUBLIC_KEY: ${env:RSA_PUBLIC_KEY}
+    TOKEN_TTL_MINUTES: ${env:TOKEN_TTL_MINUTES}
+    EMAIL_FROM: ${env:EMAIL_FROM}
+    ACCOUNT_ID: ${aws:accountId}
+    REGION: ${aws:region}
+
+resources:
+  Resources:
+    UsersTable:
+      Type: AWS::DynamoDB::GlobalTable
+      Properties:
+        TableName: users
+        Replicas:
+          - Region: eu-north-1
+        BillingMode: PAY_PER_REQUEST
+        AttributeDefinitions:
+          - AttributeName: email
+            AttributeType: S
+        KeySchema:
+          - AttributeName: email
+            KeyType: HASH
+    LinksTable:
+      Type: AWS::DynamoDB::GlobalTable
+      Properties:
+        TableName: links
+        Replicas:
+          - Region: eu-north-1
+        BillingMode: PAY_PER_REQUEST
+        AttributeDefinitions:
+          - AttributeName: id
+            AttributeType: S
+        KeySchema:
+          - AttributeName: id
+            KeyType: HASH
+    emailQueue:
+      Type: AWS::SQS::Queue
+      Properties:
+        QueueName: emailQueue
+
+functions:
+  verifyToken:
+    handler: src/validators/authValidator.verifyToken
+  deleteExpiredLinks:
+    handler: src/handlers/deleteLinkScheduled.scheduledDeleteExpiredLinks
+    events:
+      - eventBridge:
+          schedule: cron(0 3 * * ? *)
+  sendEmail:
+    handler: src/handlers/sendEmail.sendEmail
+    events:
+      - sqs:
+          arn:
+            Fn::GetAtt:
+              - emailQueue
+              - Arn
+          batchSize: 10
+          maximumBatchingWindow: 60
+          functionResponseType: ReportBatchItemFailures
+  register:
+    handler: src/handlers/auth.register
+    events:
+      - http:
+          path: auth/register
+          method: post
+          cors: true
+          bodyType: User
+          responseData:
+            201:
+              description: 'New user registered'
+              bodyType: Token
+            400:
+              description: 'Invalid body params'
+              bodyType: ErrorArr
+            409:
+              description: 'User already exists'
+              bodyType: ErrorStr
+            500:
+              description: 'Server error'
+              bodyType: ErrorStr
+  login:
+    handler: src/handlers/auth.login
+    events:
+      - http:
+          path: auth/login
+          method: post
+          cors: true
+          bodyType: User
+          responseData:
+            200:
+              description: 'Successful login'
+              bodyType: Token
+            400:
+              description: 'Invalid params'
+              bodyType: ErrorArr
+            500:
+              description: 'Server error'
+              bodyType: ErrorStr
+  createShortLink:
+    handler: src/handlers/shortlink.createShortLink
+    events:
+      - http:
+          path: /
+          method: post
+          cors: true
+          authorizer: verifyToken
+          bodyType: CreateLink
+          responseData:
+            201:
+              description: 'Successfully create a short link'
+              bodyType: Link
+            400:
+              description: 'Invalid params'
+              bodyType: ErrorArr
+            409:
+              description: "Can't create a new short link"
+              bodyType: ErrorStr
+  goToOriginalLink:
+    handler: src/handlers/shortlink.goToOriginalLink
+    events:
+      - http:
+          path: /{id}
+          method: get
+          cors: true
+          responseData:
+            301:
+              description: 'Redirect to original link'
+            404:
+              description: 'Not link'
+              bodyType: ErrorStr
+            400:
+              description: 'Link expired'
+              bodyType: ErrorStr
+  getUsersLinks:
+    handler: src/handlers/shortlink.getUsersLinks
+    events:
+      - http:
+          path: links
+          method: get
+          cors: true
+          authorizer: verifyToken
+          responseData:
+            200:
+              description: "User's short links"
+              bodyType: Links
+  deleteLink:
+    handler: src/handlers/shortlink.deleteLink
+    events:
+      - http:
+          path: /{id}
+          method: delete
+          cors: true
+          authorizer: verifyToken
+          responseData:
+            200:
+              description: 'Successfully delete a short link'
+            404:
+              description: 'Not link'
+              bodyType: ErrorStr
+            403:
+              description: "You aren't owner"
+              bodyType: ErrorStr
