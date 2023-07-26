@@ -39,15 +39,3 @@ export class GetLinksByOwnerEmailParams extends LinkTable {
     };
   }
 }
-
-export class GerExpiredLinksParams extends LinkTable {
-  FilterExpression = "expIn > :zero and expIn < :now";
-  ExpressionAttributeValues: Record<":zero" | ":now", number>;
-  constructor() {
-    super();
-    this.ExpressionAttributeValues = {
-      ":now": new Date().getTime(),
-      ":zero": 0,
-    };
-  }
-}

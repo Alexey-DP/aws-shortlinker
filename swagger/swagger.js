@@ -269,6 +269,30 @@
           }
         }
       }
+    },
+    "/test": {
+      "get": {
+        "summary": "test",
+        "description": "",
+        "operationId": "test.get.test",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "security": [
+          {
+            "Authorization": []
+          }
+        ],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "200 response"
+          }
+        }
+      }
     }
   },
   "definitions": {

@@ -3,6 +3,10 @@ import {
   APIGatewayProxyStructuredResultV2,
   ProxyResult,
 } from "aws-lambda";
+import {
+  CreateScheduleCommand,
+  DeleteScheduleCommand,
+} from "@aws-sdk/client-scheduler";
 import eventBodyParser from "../utils/eventBodyPorser";
 import { validateReq } from "../validators/reqValidator";
 import { createLinkSchema } from "../validators/schemas/createLinkSchema";
@@ -18,6 +22,7 @@ import {
 import { generateLinksTtl } from "../helpers/generateLinksTtl";
 import { SqsEmailQueueMessage } from "../utils/generateSqsMessage";
 import sqs from "../utils/sqs";
+import { NewScheduleCommand, scheduler } from "../utils/scheduler";
 
 const generateShortId = async (idLength = 1): Promise<string | null> => {
   if (idLength > 6) {
@@ -67,6 +72,22 @@ export const createShortLink = async (
     visitCount: 0,
   });
   await dynamoDb.put(newShortLinkParams);
+
+  try {
+    if (ttlParam !== "once") {
+      const now = new Date().getTime();
+      const expiredAt = new Date(now + Number(ttlParam) * 24 * 60 * 60 * 1000);
+      const time = expiredAt.toISOString().split(".")[0];
+
+      await scheduler.send(
+        new CreateScheduleCommand(
+          new NewScheduleCommand({ time, email: ownerEmail, id: linkId })
+        )
+      );
+    }
+  } catch (error) {
+    console.log((error as Error).message);
+  }
 
   const newShortURL = generateShortUrl(event, linkId);
   return new SlsResponse(201, { link: newShortURL });
@@ -133,6 +154,17 @@ export const deleteLink = async (
   }
 
   await dynamoDb.delete(new LinkIdParams({ id: shortId }));
+
+  try {
+    if (shortLinkObj.expIn > 0) {
+      await scheduler.send(
+        new DeleteScheduleCommand({
+          Name: `expired_link_id-${shortId}`,
+          GroupName: "deleteLink",
+        })
+      );
+    }
+  } catch (error) {}
 
   return {
     statusCode: 200,

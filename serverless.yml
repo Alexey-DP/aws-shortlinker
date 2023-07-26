@@ -24,23 +24,7 @@ provider:
   runtime: nodejs18.x
   region: eu-north-1
   iam:
-    role:
-      statements:
-        - Effect: 'Allow'
-          Action:
-            - 'dynamodb:PutItem'
-            - 'dynamodb:Get*'
-            - 'dynamodb:Scan*'
-            - 'dynamodb:UpdateItem'
-            - 'dynamodb:DeleteItem'
-            - 'dynamodb:BatchWriteItem'
-            - 'sqs:SendMessage'
-            - 'ses:SendEmail'
-          Resource:
-            - arn:aws:dynamodb:${aws:region}:${aws:accountId}:table/users
-            - arn:aws:dynamodb:${aws:region}:${aws:accountId}:table/links
-            - arn:aws:ses:${self:provider.region}:${aws:accountId}:*
-            - arn:aws:sqs:${self:provider.region}:${aws:accountId}:emailQueue
+    role: MainRole
   environment:
     RSA_PRIVATE_KEY: ${env:RSA_PRIVATE_KEY}
     RSA_PUBLIC_KEY: ${env:RSA_PUBLIC_KEY}
@@ -51,6 +35,52 @@ provider:
 
 resources:
   Resources:
+    MainRole:
+      Type: AWS::IAM::Role
+      Properties:
+        RoleName: MainRole
+        AssumeRolePolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Principal:
+                Service:
+                  - lambda.amazonaws.com
+                  - events.amazonaws.com
+                  - scheduler.amazonaws.com
+              Action: sts:AssumeRole
+              Condition:
+                StringEquals:
+                  aws:SourceAccount: ${aws:accountId}
+        Policies:
+          - PolicyName: mainPolicy
+            PolicyDocument:
+              Version: '2012-10-17'
+              Statement:
+                - Effect: 'Allow'
+                  Action:
+                    - dynamodb:PutItem
+                    - dynamodb:Get*
+                    - dynamodb:Scan*
+                    - dynamodb:UpdateItem
+                    - dynamodb:DeleteItem
+                    - dynamodb:BatchWriteItem
+                    - sqs:*
+                    - ses:*
+                    - scheduler:*
+                    - logs:*
+                    - iam:PassRole
+                    - lambda:InvokeFunction
+                  Resource:
+                    - arn:aws:dynamodb:${aws:region}:${aws:accountId}:table/users
+                    - arn:aws:dynamodb:${aws:region}:${aws:accountId}:table/links
+                    - arn:aws:ses:${self:provider.region}:${aws:accountId}:*
+                    - arn:aws:sqs:${self:provider.region}:${aws:accountId}:emailQueue
+                    - arn:aws:scheduler:${self:provider.region}:${aws:accountId}:*
+                    - arn:aws:iam::${aws:accountId}:role/MainRole
+                    - arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:short-linker-dev-deleteExpiredLinks:*
+                    - arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:short-linker-dev-deleteExpiredLinks
+                    - arn:aws:logs:${self:provider.region}:${aws:accountId}:*
     UsersTable:
       Type: AWS::DynamoDB::GlobalTable
       Properties:
@@ -81,15 +111,16 @@ resources:
       Type: AWS::SQS::Queue
       Properties:
         QueueName: emailQueue
+    DeleteLinkGroup:
+      Type: AWS::Scheduler::ScheduleGroup
+      Properties:
+        Name: deleteLink
 
 functions:
   verifyToken:
     handler: src/validators/authValidator.verifyToken
   deleteExpiredLinks:
     handler: src/handlers/deleteLinkScheduled.scheduledDeleteExpiredLinks
-    events:
-      - eventBridge:
-          schedule: cron(0 3 * * ? *)
   sendEmail:
     handler: src/handlers/sendEmail.sendEmail
     events:
@@ -204,3 +235,10 @@ functions:
             403:
               description: "You aren't owner"
               bodyType: ErrorStr
+  test:
+    handler: src/handlers/test.testFn
+    events:
+      - http:
+          path: test
+          method: get
+          cors: true

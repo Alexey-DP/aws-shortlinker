@@ -3,11 +3,6 @@ export interface IRecordBody {
   expiredLinkId: string;
 }
 
-export interface ISqsBatchEntrie {
-  Id: string;
-  MessageBody: string;
-}
-
 class SqsQueueUrl {
   private readonly accountId = process.env.ACCOUNT_ID;
   private readonly region = process.env.REGION;
@@ -19,13 +14,5 @@ export class SqsEmailQueueMessage extends SqsQueueUrl {
   constructor(data: IRecordBody) {
     super();
     this.MessageBody = JSON.stringify(data);
-  }
-}
-
-export class SqsEmailQueueBatch extends SqsQueueUrl {
-  Entries: ISqsBatchEntrie[];
-  constructor(data: ISqsBatchEntrie[]) {
-    super();
-    this.Entries = data;
   }
 }
