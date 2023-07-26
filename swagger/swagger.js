@@ -271,10 +271,10 @@
       }
     },
     "/test": {
-      "get": {
+      "post": {
         "summary": "test",
         "description": "",
-        "operationId": "test.get.test",
+        "operationId": "test.post.test",
         "consumes": [
           "application/json"
         ],

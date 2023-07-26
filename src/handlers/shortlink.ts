@@ -3,13 +3,17 @@ import {
   APIGatewayProxyStructuredResultV2,
   ProxyResult,
 } from "aws-lambda";
+import middy from "middy";
+import { jsonBodyParser } from "middy/middlewares";
 import {
   CreateScheduleCommand,
   DeleteScheduleCommand,
 } from "@aws-sdk/client-scheduler";
-import eventBodyParser from "../utils/eventBodyPorser";
-import { validateReq } from "../validators/reqValidator";
-import { createLinkSchema } from "../validators/schemas/createLinkSchema";
+import { middyZodValidator } from "../validators/reqValidator";
+import {
+  LinkType,
+  createLinkSchema,
+} from "../validators/schemas/createLinkSchema";
 import SlsResponse from "../utils/generateResponse";
 import { nanoid } from "nanoid";
 import { dynamoDb } from "../utils/db/dynamoDb";
@@ -36,21 +40,13 @@ const generateShortId = async (idLength = 1): Promise<string | null> => {
   return id;
 };
 
-const generateShortUrl = (event: APIGatewayEvent, shortId: string): string => {
-  const proto = "https://";
-  const host = event.headers.Host;
-  const path = event.requestContext.path || "/";
-  return proto + host + path + shortId;
-};
-
-export const createShortLink = async (
-  event: APIGatewayEvent
+const createShortLinkFn = async (
+  event: APIGatewayEvent & LinkType
 ): Promise<ProxyResult> => {
-  const parseEvent = eventBodyParser(event);
-  const isValid = await validateReq(createLinkSchema, parseEvent);
+  const { error } = event.body as any;
 
-  if (isValid?.error) {
-    return new SlsResponse(400, { error: isValid.error });
+  if (error) {
+    return new SlsResponse(400, { error });
   }
 
   const linkId = await generateShortId();
@@ -61,7 +57,7 @@ export const createShortLink = async (
     });
   }
 
-  const { originalLink, ttl: ttlParam } = parseEvent.body;
+  const { originalLink, ttl: ttlParam } = event.body;
   const ownerEmail = event.requestContext.authorizer?.principalId as string;
   const ttl = generateLinksTtl(ttlParam);
   const newShortLinkParams = new PutLinkParams({
@@ -89,7 +85,7 @@ export const createShortLink = async (
     console.log((error as Error).message);
   }
 
-  const newShortURL = generateShortUrl(event, linkId);
+  const newShortURL = `${process.env.BASE_URL}${linkId}`;
   return new SlsResponse(201, { link: newShortURL });
 };
 
@@ -170,3 +166,7 @@ export const deleteLink = async (
     statusCode: 200,
   };
 };
+
+export const createShortLink = middy(createShortLinkFn)
+  .use(jsonBodyParser())
+  .use(middyZodValidator(createLinkSchema));

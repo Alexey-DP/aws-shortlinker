@@ -32,6 +32,7 @@ provider:
     EMAIL_FROM: ${env:EMAIL_FROM}
     ACCOUNT_ID: ${aws:accountId}
     REGION: ${aws:region}
+    BASE_URL: !Sub 'https://${ApiGatewayRestApi}.execute-api.${aws:region}.amazonaws.com/${sls:stage}/'
 
 resources:
   Resources:
@@ -235,10 +236,3 @@ functions:
             403:
               description: "You aren't owner"
               bodyType: ErrorStr
-  test:
-    handler: src/handlers/test.testFn
-    events:
-      - http:
-          path: test
-          method: get
-          cors: true

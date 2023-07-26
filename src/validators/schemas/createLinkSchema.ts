@@ -18,3 +18,5 @@ export const createLinkSchema = z.object({
     ttl: z.nativeEnum(LinkTtl),
   }),
 });
+
+export type LinkType = z.infer<typeof createLinkSchema>;

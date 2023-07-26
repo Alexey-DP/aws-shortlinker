@@ -1,25 +1,25 @@
 import { APIGatewayEvent, ProxyResult } from "aws-lambda";
-import eventBodyParser from "../utils/eventBodyPorser";
-import { validateReq } from "../validators/reqValidator";
-import { authSchema } from "../validators/schemas/authSchema";
+import middy from "middy";
+import { jsonBodyParser } from "middy/middlewares";
+import { middyZodValidator } from "../validators/reqValidator";
+import { AuthType, authSchema } from "../validators/schemas/authSchema";
 import { dynamoDb } from "../utils/db/dynamoDb";
 import SlsResponse from "../utils/generateResponse";
 import { checkPasswords, hashUsersPassword } from "../helpers/hashPassword";
 import { GetUserParams, PutUserParams } from "../utils/db/params/userParams";
 import { generateToken } from "../helpers/tokens";
 
-export const register = async (
-  event: APIGatewayEvent
+const registerFn = async (
+  event: APIGatewayEvent & AuthType
 ): Promise<ProxyResult> => {
   try {
-    const parseEvent = eventBodyParser(event);
-    const isValid = await validateReq(authSchema, parseEvent);
+    const { error } = event.body as any;
 
-    if (isValid?.error) {
-      return new SlsResponse(400, { error: isValid.error });
+    if (error) {
+      return new SlsResponse(400, { error });
     }
 
-    const { email, password } = parseEvent.body;
+    const { email, password } = event.body;
     const { Item } = await dynamoDb.get(new GetUserParams({ email }));
 
     if (Item) {
@@ -38,16 +38,17 @@ export const register = async (
   }
 };
 
-export const login = async (event: APIGatewayEvent): Promise<ProxyResult> => {
+const loginFn = async (
+  event: APIGatewayEvent & AuthType
+): Promise<ProxyResult> => {
   try {
-    const parseEvent = eventBodyParser(event);
-    const isValid = await validateReq(authSchema, parseEvent);
+    const { error } = event.body as any;
 
-    if (isValid?.error) {
-      return new SlsResponse(400, { error: isValid.error });
+    if (error) {
+      return new SlsResponse(400, { error });
     }
 
-    const { email, password } = parseEvent.body;
+    const { email, password } = event.body;
     const { Item: user } = await dynamoDb.get(new GetUserParams({ email }));
 
     if (!user) {
@@ -67,3 +68,11 @@ export const login = async (event: APIGatewayEvent): Promise<ProxyResult> => {
     return new SlsResponse(500, { error: (error as Error).message });
   }
 };
+
+export const register = middy(registerFn)
+  .use(jsonBodyParser())
+  .use(middyZodValidator(authSchema));
+
+export const login = middy(loginFn)
+  .use(jsonBodyParser())
+  .use(middyZodValidator(authSchema));
