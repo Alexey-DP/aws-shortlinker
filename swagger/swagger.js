@@ -269,30 +269,6 @@
           }
         }
       }
-    },
-    "/test": {
-      "post": {
-        "summary": "test",
-        "description": "",
-        "operationId": "test.post.test",
-        "consumes": [
-          "application/json"
-        ],
-        "produces": [
-          "application/json"
-        ],
-        "security": [
-          {
-            "Authorization": []
-          }
-        ],
-        "parameters": [],
-        "responses": {
-          "200": {
-            "description": "200 response"
-          }
-        }
-      }
     }
   },
   "definitions": {

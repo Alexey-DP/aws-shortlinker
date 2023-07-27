@@ -20,6 +20,8 @@ Install serverless:
 
 Clone this project
 
+Run `npm i`
+
 Generate pair keys using open SSL commands:
 
 `openssl genrsa -des3 -out private.pem 2048`
@@ -48,87 +50,15 @@ Deploy API:
 
 `sls deploy`
 
-## API functional:
-
-DynamoDB is used as the main data storage.
-
-### Routes:
-
-`POST $/auth/register` - register new users
-
-Required in the request:
-
-Boby:
-`{
-  "email": "string",
-  "password": "string"
-}`
-
-Response:
-`{
-  "token": "string"
-}`
-
-`POST $/auth/login` - login
-
-Required in the request:
-
-Boby:
-`{
-  "email": "string",
-  "password": "string"
-}`
-
-Response:
-`{
-  "token": "string"
-}`
-
-`POST $/` - create a new short link
-
-Required in the request:
-
-Headers: `Authorization: 'Bearer <token>'`
-
-Boby:
-`{
-  "originalLink": "url",
-  "ttl": "once" | "1" | "3" | "5"
-}`
-
-Response:
-`{
-  "link": "string"
-}`
-
-`GET $/:shortLinkId` - go to original link
-
-`DELETE $/:shortLinkId` - deactivate short link
-
-Required in the request:
-
-Headers: `Authorization: 'Bearer <token>'`
-
-`GET $/links` - get user's links
-
-Required in the request:
-
-Headers: `Authorization: 'Bearer <token>'`
-
-Response:
-`{
-  "links": "array"
-}`
-
 ### Notifications
 
 The API uses AWS SES to send notifications when a link has expired. AWS SQS is used as a queue for sending emails.
 
-!!! For sending user's email must be verified on AWS SES.
+!!! For sending user's email must be verified on AWS SES. After deployment check your email!
 
 ### Auto remove expired links
 
-Lambda function with cron is used to remove expired links once a day.
+Lambda function with scheduler is used to remove expired links once a day.
 
 ## API testing
 
@@ -136,4 +66,4 @@ To test the API using requests, run the application locally and use the swagger:
 
 `npm start`
 
-Or you can check out the app [here](https://dxf13daxt5.execute-api.eu-north-1.amazonaws.com/swagger)
+Or you can check out the app [here](https://awqfhwv0ud.execute-api.eu-north-1.amazonaws.com/swagger)

@@ -4,6 +4,9 @@ frameworkVersion: '3'
 useDotenv: true
 
 custom:
+  scripts:
+      hooks:
+        'after:deploy:finalize': node verifyEmail.mjs
   esbuild:
     bundle: true
     minify: false
@@ -16,6 +19,7 @@ custom:
 
 plugins:
   - serverless-auto-swagger
+  - serverless-plugin-scripts
   - serverless-esbuild
   - serverless-offline
 
