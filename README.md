@@ -66,4 +66,4 @@ To test the API using requests, run the application locally and use the swagger:
 
 `npm start`
 
-Or you can check out the app [here](https://awqfhwv0ud.execute-api.eu-north-1.amazonaws.com/swagger)
+Or you can check out the app [here](https://47psyd5yhb.execute-api.eu-north-1.amazonaws.com/swagger)

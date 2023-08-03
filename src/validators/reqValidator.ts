@@ -1,6 +1,7 @@
 import { AnyZodObject, ZodError } from "zod";
 import { APIGatewayEvent, ProxyResult } from "aws-lambda";
 import { HandlerLambda, MiddlewareObject, NextFunction } from "middy";
+import SlsResponse from "../utils/generateResponse";
 
 const validateReq = async (schema: AnyZodObject, event: APIGatewayEvent) => {
   try {
@@ -31,15 +32,24 @@ export const middyZodValidator = (
     before: async (
       handler: HandlerLambda<APIGatewayEvent, ProxyResult>,
       next: NextFunction
-    ): Promise<void> => {
+    ): Promise<void | ProxyResult> => {
       const { event } = handler;
       const isValid = await validateReq(schema, event);
 
       if (isValid?.error) {
-        (handler.event.body as any) = { error: isValid.error };
+        throw new Error(JSON.stringify(isValid.error));
       }
 
       next();
+    },
+    onError: (
+      handler: HandlerLambda<APIGatewayEvent, ProxyResult>,
+      next: NextFunction
+    ) => {
+      handler.response = new SlsResponse(400, {
+        error: JSON.parse(handler.error.message),
+      });
+      return next();
     },
   };
 };

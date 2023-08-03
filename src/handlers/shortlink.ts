@@ -43,12 +43,6 @@ const generateShortId = async (idLength = 1): Promise<string | null> => {
 const createShortLinkFn = async (
   event: APIGatewayEvent & LinkType
 ): Promise<ProxyResult> => {
-  const { error } = event.body as any;
-
-  if (error) {
-    return new SlsResponse(400, { error });
-  }
-
   const linkId = await generateShortId();
 
   if (!linkId) {

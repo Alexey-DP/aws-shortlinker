@@ -13,12 +13,6 @@ const registerFn = async (
   event: APIGatewayEvent & AuthType
 ): Promise<ProxyResult> => {
   try {
-    const { error } = event.body as any;
-
-    if (error) {
-      return new SlsResponse(400, { error });
-    }
-
     const { email, password } = event.body;
     const { Item } = await dynamoDb.get(new GetUserParams({ email }));
 
@@ -42,12 +36,6 @@ const loginFn = async (
   event: APIGatewayEvent & AuthType
 ): Promise<ProxyResult> => {
   try {
-    const { error } = event.body as any;
-
-    if (error) {
-      return new SlsResponse(400, { error });
-    }
-
     const { email, password } = event.body;
     const { Item: user } = await dynamoDb.get(new GetUserParams({ email }));
 
